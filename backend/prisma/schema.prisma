@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USUARIO
+  COLABORADOR
+  GESTOR
+}
+
+enum RequestStatus {
+  ABERTO
+  EM_ANDAMENTO
+  FINALIZADO
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role
+  setor        String
+  loja         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  requestsCreated  Request[]            @relation("RequesterRequests")
+  requestsAssigned Request[]            @relation("AssignedRequests")
+  interactions     RequestInteraction[]
+  attachments      Attachment[]
+
+  @@index([role])
+}
+
+model RequestType {
+  id              String  @id @default(uuid())
+  name            String
+  slug            String  @unique
+  slaBusinessDays Int
+  active          Boolean @default(true)
+
+  requests Request[]
+}
+
+model Request {
+  id            String        @id @default(uuid())
+  requestTypeId String
+  requestType   RequestType   @relation(fields: [requestTypeId], references: [id])
+
+  requesterId   String
+  requester     User          @relation("RequesterRequests", fields: [requesterId], references: [id])
+  requesterSetor String
+  requesterLoja  String
+
+  assignedToId  String?
+  assignedTo    User?         @relation("AssignedRequests", fields: [assignedToId], references: [id])
+
+  status        RequestStatus @default(ABERTO)
+  dueDate       DateTime
+  closedAt      DateTime?
+
+  // Campos específicos - Advertência
+  advertidoNome String?
+  motivo        String?
+
+  // Campos específicos - Revisão de Contrato
+  descricaoRevisao String?
+
+  // Reservado para campos de futuros tipos de solicitação
+  detalhes      Json?
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  interactions  RequestInteraction[]
+  attachments   Attachment[]
+
+  @@index([requesterSetor])
+  @@index([requesterLoja])
+  @@index([advertidoNome])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model RequestInteraction {
+  id             String         @id @default(uuid())
+  requestId      String
+  request        Request        @relation(fields: [requestId], references: [id])
+  authorId       String
+  author         User           @relation(fields: [authorId], references: [id])
+  message        String
+  statusChangeTo RequestStatus?
+  createdAt      DateTime       @default(now())
+
+  attachments    Attachment[]
+}
+
+model Attachment {
+  id            String               @id @default(uuid())
+  requestId     String
+  request       Request              @relation(fields: [requestId], references: [id])
+  interactionId String?
+  interaction   RequestInteraction?  @relation(fields: [interactionId], references: [id])
+  uploadedById  String
+  uploadedBy    User                 @relation(fields: [uploadedById], references: [id])
+  fileName      String
+  storageKey    String
+  mimeType      String
+  sizeBytes     Int
+  createdAt     DateTime             @default(now())
+}
