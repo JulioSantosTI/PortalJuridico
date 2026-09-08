@@ -7,6 +7,8 @@ import { requestsRouter } from "./modules/requests/requests.routes";
 import { interactionsRouter } from "./modules/interactions/interactions.routes";
 import { uploadsRouter } from "./modules/uploads/uploads.routes";
 import { dashboardRouter } from "./modules/dashboard/dashboard.routes";
+import { calendarRouter } from "./modules/calendar/calendar.routes";
+import { accessRequestsRouter } from "./modules/accessRequests/accessRequests.routes";
 import { errorHandler } from "./middleware/error.middleware";
 
 export const app = express();
@@ -23,5 +25,7 @@ app.use("/api/requests", requestsRouter);
 app.use("/api/requests", interactionsRouter);
 app.use("/api/uploads", uploadsRouter);
 app.use("/api/dashboard", dashboardRouter);
+app.use("/api/calendar", calendarRouter);
+app.use("/api/access-requests", accessRequestsRouter);
 
 app.use(errorHandler);

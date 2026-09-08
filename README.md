@@ -60,6 +60,9 @@ Toda a lógica de negócio (quem pode ver o quê, cálculo de prazo, regras de a
 | **AWS SDK v3 (S3) + presigned URL** | Cliente de storage de arquivos compatível com S3 | Ao invés do arquivo passar pelo nosso servidor Node (o que consome memória/CPU à toa e trava com arquivo grande), o frontend pede uma "URL assinada" pro backend e manda o arquivo *direto* pro bucket. O backend só guarda a referência (`storageKey`). Por usar o padrão S3, funciona tanto com AWS S3 quanto Cloudflare R2, DigitalOcean Spaces etc — não trava você num único fornecedor |
 | **MinIO (Docker, só em dev)** | Storage S3-compatible rodando localmente | Pra desenvolver e testar upload de arquivo sem precisar de uma conta AWS de verdade nem gastar dinheiro em ambiente de dev |
 | **Docker Compose** | Sobe Postgres + MinIO com um comando | Qualquer pessoa que for rodar o projeto localmente tem o ambiente idêntico, sem precisar instalar Postgres/MinIO manualmente na máquina |
+| **googleapis (Google APIs Node.js client)** — *código pronto, não usado no momento* | Cliente oficial do Google para OAuth2 + Calendar API | A Agenda hoje é um calendário próprio (ver seção "Agenda" abaixo), mas deixei o fluxo OAuth completo já implementado (`lib/googleCalendar.ts`) pra quando sincronizar com o Google Calendar voltar a ser prioridade, sem precisar refazer essa parte (é literalmente autenticação de terceiro, a parte mais arriscada de reimplementar depois com pressa) |
+| **AES-256-GCM (`crypto` nativo do Node)** — *idem* | Criptografia simétrica para os tokens do Google | Preparado pra quando os tokens OAuth voltarem a ser salvos — um refresh token do Google equivale a uma senha de longa duração, não pode ficar em texto puro no banco. Usei o módulo `crypto` nativo (sem lib extra) porque é uma operação simples que não justifica uma dependência a mais |
+| **Web Notifications API (nativa do navegador)** | API do browser pra mostrar notificações do sistema operacional a partir de JavaScript | É o que faz o lembrete de compromisso aparecer sem precisarmos construir nenhuma infraestrutura de notificação própria — só pede permissão ao usuário e chama `new Notification(...)` na hora certa. Limitação: só funciona com o app aberto numa aba do navegador |
 
 ---
 
@@ -87,6 +90,8 @@ Definido em [`backend/prisma/schema.prisma`](backend/prisma/schema.prisma):
 - **`Request`** — a solicitação em si: quem abriu, setor/loja, pra quem foi atribuída, status atual, prazo (`dueDate`) calculado na criação. Os campos específicos de cada tipo (`advertidoNome`, `motivo` para Advertência; `descricaoRevisao` para Revisão de Contrato) ficam como colunas próprias — assim dá pra buscar/filtrar por eles no histórico com performance. Existe também um campo `detalhes` (JSON livre, sem estrutura fixa) reservado pra quando um **futuro** tipo de solicitação precisar de campos que ainda não existem, sem precisar de uma migration de banco toda vez.
 - **`RequestInteraction`** — cada "tratativa" registrada pelo jurídico (mensagem + possível mudança de status). Fica numa tabela separada (não é só um campo de texto único na solicitação) porque o negócio pode ter várias interações ao longo do tempo — isso vira automaticamente a "linha do tempo" que aparece na tela de detalhe.
 - **`Attachment`** — anexos, tanto os enviados na abertura da solicitação (evidências) quanto os enviados numa tratativa (documento formal). Por isso tem `interactionId` opcional: se for nulo, é anexo da solicitação original; se tiver valor, é anexo daquela tratativa específica.
+- **`CalendarEvent`** — os compromissos da Agenda, salvos direto no nosso banco (título, descrição, início, fim, `reminderMinutes`). Cada evento pertence a um `User` (Colaborador/Gestor).
+- **`GoogleAccount`** — model pronto para uma futura sincronização com o Google Calendar (guarda e-mail e tokens OAuth **criptografados**), mas **não é usado hoje** — a Agenda atual não depende dele. Fica no schema pra não precisar refazer esse trabalho quando essa integração voltar a ser prioridade.
 
 ---
 
@@ -101,6 +106,7 @@ Cada pasta em `backend/src/modules/` é um recurso da API, sempre no padrão **r
 - **`interactions/`** — registrar uma tratativa (resposta do jurídico) numa solicitação, com possível troca de status e anexo.
 - **`uploads/`** — gera a URL assinada (presigned URL) que o frontend usa pra subir arquivo direto no storage, sem passar pelo nosso servidor.
 - **`dashboard/`** — os KPIs do gestor: total na fila, ativas por colaborador, total finalizado, tempo médio de resolução por tipo, curva ABC de solicitantes.
+- **`calendar/`** — CRUD dos compromissos da Agenda (listar/criar/apagar), direto no nosso banco. Também expõe (mas o front não usa por enquanto) as rotas do fluxo OAuth com o Google, prontas pra uma futura sincronização.
 
 Suporte transversal, em `backend/src/`:
 - **`middleware/auth.middleware.ts`** — dois middlewares: `requireAuth` (exige token válido) e `requireRole(...papéis)` (exige que o usuário logado tenha um dos papéis permitidos). Toda rota sensível passa por eles antes de chegar na lógica de negócio.
@@ -108,6 +114,8 @@ Suporte transversal, em `backend/src/`:
 - **`lib/businessDays.ts`** — matemática de dias úteis (somar N dias úteis a partir de uma data; contar dias úteis entre duas datas). Usada tanto pra calcular o prazo de uma solicitação nova quanto pra calcular quanto tempo levou pra resolver uma solicitação finalizada.
 - **`lib/jwt.ts`** e **`lib/prisma.ts`** — instâncias compartilhadas (o cliente do Prisma e as funções de assinar/verificar token), pra não recriar isso em cada arquivo.
 - **`lib/s3.ts`** — encapsula toda a conversa com o storage S3-compatible (gerar chave de arquivo, gerar URL assinada, montar URL pública).
+- **`lib/crypto.ts`** — `encrypt`/`decrypt` de strings (AES-256-GCM), usado só pelos tokens do Google antes de salvar no banco.
+- **`lib/googleCalendar.ts`** — monta o `OAuth2Client` do Google, gera a URL de consentimento, troca código por token, e centraliza `getAuthorizedClientForUser` (carrega o token de um usuário, e persiste de volta no banco automaticamente quando o access token é renovado) — todo o módulo `calendar/` passa por aqui, sem duplicar lógica de refresh de token.
 
 ---
 
@@ -119,6 +127,7 @@ Suporte transversal, em `backend/src/`:
 - **`components/requests/`** — pedacinhos de UI reaproveitados nas telas: `StatusBadge` (bolinha colorida de status), `DeadlineBadge` (prazo restante/atrasado), `FileUploadField` (input de arquivo com barra de progresso por arquivo) e `AttachmentList` (lista de anexos com link de download).
 - **`hooks/useFileUpload.ts`** — implementa o fluxo de upload em 2 passos (pedir URL assinada → mandar o arquivo direto pro bucket) e controla o estado de cada arquivo (enviando/enviado/erro), pra qualquer tela que precise de upload (Nova Solicitação e Tratativa) só "plugar" o hook ao invés de reescrever essa lógica duas vezes.
 - **`pages/`** — uma tela por rota, seguindo exatamente as regras de acesso por papel descritas acima. Cada página busca seus dados com `useQuery` e envia mudanças com `useMutation`, ambos do TanStack Query.
+- **`hooks/useBrowserReminders.ts`** — hoje mora fora de `pages/` porque não é exclusivo da Agenda: é montado uma vez no `AppShell`, então continua checando lembretes mesmo com o usuário navegando em outra tela do app.
 
 ---
 
@@ -142,6 +151,12 @@ O prazo (`dueDate`) é calculado **na criação**, somando os dias úteis defini
 
 Isso evita que o servidor Node fique sobrecarregado recebendo e reenviando arquivos grandes, e permite trocar de provedor de storage sem mudar como o frontend funciona.
 
+### Agenda (evento local + lembrete no navegador)
+1. Criar/listar/apagar compromisso é um CRUD comum contra o nosso banco (`CalendarEvent`) — sem chamada a serviço externo. Colaborador só mexe na própria agenda; Gestor pode escolher (via seletor) ver a agenda de qualquer colaborador, mas só cria/apaga na própria (o endpoint de criar nem aceita um "de quem" — sempre é o usuário logado).
+2. O lembrete não é um sistema de notificação "de verdade" com servidor — é só o navegador. `useBrowserReminders` (chamado uma vez no `AppShell`, então roda em qualquer tela do app, não só na Agenda) busca os compromissos do próprio usuário a cada 60s e, a cada 15s, confere se algum deles entrou na janela `[início - reminderMinutes, início)`. Se entrou, dispara `new Notification(...)` do navegador e marca aquele evento como já notificado (numa `ref`, pra não repetir).
+3. Isso só funciona com o navegador aberto (a aba pode estar em segundo plano, mas o processo precisa estar rodando) — não é uma notificação de sistema chegando com tudo fechado. Pra isso seria preciso um Service Worker + servidor de push (Web Push/VAPID), infraestrutura mais pesada que fica como possível próximo passo.
+4. **Nota histórica**: a primeira versão da Agenda usava o Google Calendar como fonte de verdade (sem guardar evento local nenhum, só o token OAuth). Trocamos pra essa versão local porque exigir conectar uma conta Google antes de usar a Agenda travava o teste da feature — o código do fluxo Google (`lib/googleCalendar.ts`, model `GoogleAccount`, rotas `/calendar/status`, `/calendar/oauth/*`, `/calendar/disconnect`) continua no projeto, pronto pra ser plugado de volta (ex: sincronizar os eventos locais pro Google) quando isso voltar a ser prioridade.
+
 ---
 
 ## Estrutura de pastas
@@ -159,7 +174,7 @@ ProjetoJuridico/
 │   ├── src/
 │   │   ├── modules/             um recurso da API por pasta (ver seção acima)
 │   │   ├── middleware/          auth, papéis, tratamento de erro
-│   │   ├── lib/                 prisma client, jwt, dias úteis, storage S3
+│   │   ├── lib/                 prisma client, jwt, dias úteis, storage S3, crypto, google calendar
 │   │   ├── app.ts               monta o Express e registra as rotas
 │   │   └── server.ts            ponto de entrada (sobe o servidor HTTP)
 │   ├── docker-compose.yml       Postgres + MinIO pra desenvolvimento local
@@ -199,6 +214,8 @@ npm run dev           # App em http://localhost:5173
 ```
 
 Usuários de teste (senha `123456` para todos): `usuario@empresa.com`, `juridico@empresa.com`, `gestor@empresa.com`.
+
+A Agenda já funciona nos passos acima, sem nenhuma configuração extra (é um calendário próprio, não depende do Google). As variáveis `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` no `backend/.env.example` são só pra uma futura sincronização com o Google Calendar, que hoje não é usada.
 
 ---
 

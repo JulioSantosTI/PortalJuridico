@@ -28,6 +28,8 @@ async function main() {
       role: Role.USUARIO,
       setor: "Vendas",
       loja: "Loja Centro",
+      cidade: "São Paulo",
+      estado: "SP",
     },
   });
 
@@ -41,6 +43,8 @@ async function main() {
       role: Role.COLABORADOR,
       setor: "Jurídico",
       loja: "Matriz",
+      cidade: "São Paulo",
+      estado: "SP",
     },
   });
 
@@ -54,7 +58,20 @@ async function main() {
       role: Role.GESTOR,
       setor: "Jurídico",
       loja: "Matriz",
+      cidade: "São Paulo",
+      estado: "SP",
     },
+  });
+
+  await prisma.licensePool.upsert({
+    where: { role: Role.USUARIO },
+    update: {},
+    create: { role: Role.USUARIO, totalLicenses: 10 },
+  });
+  await prisma.licensePool.upsert({
+    where: { role: Role.COLABORADOR },
+    update: {},
+    create: { role: Role.COLABORADOR, totalLicenses: 5 },
   });
 
   console.log("Seed concluído. Senha padrão para todos: 123456");

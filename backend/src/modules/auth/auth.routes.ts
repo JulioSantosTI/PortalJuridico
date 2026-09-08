@@ -13,8 +13,26 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
-function publicUser(user: { id: string; name: string; email: string; role: string; setor: string; loja: string }) {
-  return { id: user.id, name: user.name, email: user.email, role: user.role, setor: user.setor, loja: user.loja };
+function publicUser(user: {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  setor: string;
+  loja: string;
+  cidade: string;
+  estado: string;
+}) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    setor: user.setor,
+    loja: user.loja,
+    cidade: user.cidade,
+    estado: user.estado,
+  };
 }
 
 authRouter.post(

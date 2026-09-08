@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { LoginPage } from "@/pages/LoginPage";
+import { SignupPage } from "@/pages/SignupPage";
 import { HomeRedirect } from "@/pages/HomeRedirect";
 import { NewRequestPage } from "@/pages/NewRequestPage";
 import { MyRequestsPage } from "@/pages/MyRequestsPage";
@@ -9,6 +10,8 @@ import { QueuePage } from "@/pages/QueuePage";
 import { RequestDetailPage } from "@/pages/RequestDetailPage";
 import { HistoryPage } from "@/pages/HistoryPage";
 import { DashboardPage } from "@/pages/DashboardPage";
+import { AgendaPage } from "@/pages/AgendaPage";
+import { UserManagementPage } from "@/pages/UserManagementPage";
 
 function AuthenticatedLayout() {
   return (
@@ -22,6 +25,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/cadastro" element={<SignupPage />} />
 
       <Route element={<AuthenticatedLayout />}>
         <Route path="/" element={<HomeRedirect />} />
@@ -51,6 +55,14 @@ export default function App() {
         />
         <Route path="/solicitacoes/:id" element={<RequestDetailPage />} />
         <Route
+          path="/agenda"
+          element={
+            <ProtectedRoute roles={["COLABORADOR", "GESTOR"]}>
+              <AgendaPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/historico"
           element={
             <ProtectedRoute roles={["COLABORADOR", "GESTOR"]}>
@@ -63,6 +75,14 @@ export default function App() {
           element={
             <ProtectedRoute roles={["GESTOR"]}>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/usuarios"
+          element={
+            <ProtectedRoute roles={["GESTOR"]}>
+              <UserManagementPage />
             </ProtectedRoute>
           }
         />

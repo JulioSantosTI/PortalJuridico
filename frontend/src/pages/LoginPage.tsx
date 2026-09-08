@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { Scale, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -72,6 +72,9 @@ export function LoginPage() {
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
               Entrar
             </Button>
+            <Link to="/cadastro" className="text-center text-sm text-muted-foreground hover:text-foreground">
+              Ainda não tem acesso? Cadastre-se
+            </Link>
           </form>
         </CardContent>
       </Card>

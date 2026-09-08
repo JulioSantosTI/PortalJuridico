@@ -135,6 +135,30 @@ Fluxo no frontend:
 
 ---
 
+## Agenda (perfis `COLABORADOR`, `GESTOR`)
+
+Calendário próprio da plataforma — eventos ficam salvos no nosso banco (model `CalendarEvent`), sem depender de conexão com o Google. O lembrete é entregue por notificação do navegador (Web Notifications API), calculada no frontend a partir de `reminderMinutes`.
+
+### `GET /calendar/events?colaboradorId=&from=&to=`
+Lista eventos dos próximos 30 dias por padrão (`from` default = início do dia de hoje, não a hora exata — senão um compromisso some da lista assim que o horário dele passa). `colaboradorId` só pode ser de outra pessoa se quem está logado for `GESTOR` (senão `403`) — Colaborador só consulta a própria agenda. `from`/`to` em ISO datetime.
+Resposta: `{ "events": [{ "id", "summary", "description", "start", "end", "reminderMinutes", "htmlLink": null }] }`
+
+### `POST /calendar/events`
+Cria evento **só na própria agenda** (não existe parâmetro pra criar na de outra pessoa, nem para o Gestor). Body: `{ "summary", "description"?, "startDateTime", "endDateTime", "reminderMinutes"? }` (datas em ISO datetime; lembrete em minutos antes, default 30).
+Resposta: `{ "event": {...} }`
+
+### `PATCH /calendar/events/:eventId`
+Edita um evento — só se pertencer a quem está logado (senão `404`). Body: todos os campos de `POST` opcionais (manda só o que quer mudar).
+Resposta: `{ "event": {...} }`
+
+### `DELETE /calendar/events/:eventId`
+Remove um evento — só se pertencer a quem está logado (senão `404`). Resposta: `204`.
+
+### Google Calendar (rotas prontas, não usadas pelo frontend no momento)
+As rotas `GET /calendar/status`, `GET /calendar/oauth/url`, `GET /calendar/oauth/callback` e `DELETE /calendar/disconnect` continuam implementadas (fluxo OAuth completo, tokens criptografados) para quando a sincronização com o Google Calendar voltar a ser prioridade — hoje o frontend não as chama. Ver `backend/src/lib/googleCalendar.ts`.
+
+---
+
 ## Usuários de teste (seed)
 
 | Email | Senha | Papel |

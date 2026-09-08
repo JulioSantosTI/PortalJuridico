@@ -8,6 +8,33 @@ export interface User {
   role: Role;
   setor: string;
   loja: string;
+  cidade: string;
+  estado: string;
+}
+
+export type RequestableRole = "USUARIO" | "COLABORADOR";
+export type AccessRequestStatus = "PENDENTE" | "APROVADO" | "RECUSADO";
+
+export interface AccessRequest {
+  id: string;
+  name: string;
+  email: string;
+  setor: string;
+  loja: string;
+  cidade: string;
+  estado: string;
+  requestedRole: RequestableRole;
+  status: AccessRequestStatus;
+  rejectionReason: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+}
+
+export interface LicensePoolInfo {
+  role: RequestableRole;
+  totalLicenses: number;
+  usedLicenses: number;
+  available: number;
 }
 
 export interface RequestType {
@@ -71,6 +98,21 @@ export interface AttachmentInput {
   fileName: string;
   mimeType: string;
   sizeBytes: number;
+}
+
+export interface CalendarStatus {
+  connected: boolean;
+  googleEmail: string | null;
+}
+
+export interface CalendarEvent {
+  id: string;
+  summary: string;
+  description: string | null;
+  start: string | null;
+  end: string | null;
+  reminderMinutes: number;
+  htmlLink: string | null;
 }
 
 export interface DashboardKpis {

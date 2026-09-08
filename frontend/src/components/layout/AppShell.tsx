@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Scale, FilePlus2, ListChecks, ClipboardList, History, LayoutDashboard, LogOut } from "lucide-react";
+import { Scale, FilePlus2, ListChecks, ClipboardList, History, LayoutDashboard, LogOut, CalendarDays, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useBrowserReminders } from "@/hooks/useBrowserReminders";
 import { cn } from "@/lib/utils";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -11,14 +12,17 @@ const ROLE_LABEL: Record<string, string> = {
 
 export function AppShell() {
   const { user, logout } = useAuth();
+  useBrowserReminders(user?.role === "COLABORADOR" || user?.role === "GESTOR");
   if (!user) return null;
 
   const links = [
     user.role === "USUARIO" && { to: "/minhas-solicitacoes", label: "Minhas Solicitações", icon: ClipboardList },
     user.role === "USUARIO" && { to: "/solicitacoes/nova", label: "Nova Solicitação", icon: FilePlus2 },
     (user.role === "COLABORADOR" || user.role === "GESTOR") && { to: "/fila", label: "Fila Geral", icon: ListChecks },
+    (user.role === "COLABORADOR" || user.role === "GESTOR") && { to: "/agenda", label: "Agenda", icon: CalendarDays },
     (user.role === "COLABORADOR" || user.role === "GESTOR") && { to: "/historico", label: "Histórico", icon: History },
     user.role === "GESTOR" && { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    user.role === "GESTOR" && { to: "/usuarios", label: "Gerenciamento de Usuários", icon: Users },
   ].filter((link): link is { to: string; label: string; icon: typeof FilePlus2 } => Boolean(link));
 
   return (
