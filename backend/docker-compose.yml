@@ -36,6 +36,16 @@ services:
       exit 0;
       "
 
+  # Servidor de e-mail falso pra dev: captura tudo que o backend manda, sem
+  # precisar de credencial real nem risco de mandar e-mail de verdade.
+  # Interface web em http://localhost:8025 pra ver o que foi "enviado".
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
 volumes:
   postgres_data:
   minio_data:

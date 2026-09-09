@@ -8,6 +8,7 @@ export interface CreateRequestPayload {
   advertidoNome?: string;
   motivo?: string;
   descricaoRevisao?: string;
+  detalhes?: { descricao?: string };
   attachments?: AttachmentInput[];
 }
 

@@ -113,15 +113,24 @@ accessRequestsRouter.patch(
   requireRole(Role.GESTOR),
   asyncHandler(async (req, res) => {
     const updated = await prisma.$transaction(async (tx) => {
+      // Trava a própria solicitação: impede que dois cliques/abas aprovem a mesma
+      // solicitação ao mesmo tempo (evita criar dois usuários pro mesmo e-mail).
+      await tx.$executeRaw`SELECT id FROM "AccessRequest" WHERE id = ${req.params.id} FOR UPDATE`;
+
       const existing = await tx.accessRequest.findUnique({ where: { id: req.params.id } });
       if (!existing) throw new HttpError(404, "Solicitação não encontrada");
       if (existing.status !== AccessRequestStatus.PENDENTE) {
         throw new HttpError(400, "Essa solicitação já foi analisada");
       }
 
+      // Trava o pool de licenças do papel: serializa aprovações concorrentes do
+      // mesmo papel, pra duas aprovações simultâneas não passarem pela checagem
+      // de disponibilidade ao mesmo tempo e estourar o limite contratado.
+      await tx.$executeRaw`SELECT id FROM "LicensePool" WHERE role = ${existing.requestedRole}::"Role" FOR UPDATE`;
+
       const pool = await tx.licensePool.findUnique({ where: { role: existing.requestedRole } });
       const totalLicenses = pool?.totalLicenses ?? 0;
-      const usedLicenses = await tx.user.count({ where: { role: existing.requestedRole } });
+      const usedLicenses = await tx.user.count({ where: { role: existing.requestedRole, hasLicense: true } });
       if (usedLicenses >= totalLicenses) {
         throw new HttpError(400, "Não há licenças disponíveis para esse papel");
       }
@@ -139,6 +148,7 @@ accessRequestsRouter.patch(
           loja: existing.loja,
           cidade: existing.cidade,
           estado: existing.estado,
+          hasLicense: true,
         },
       });
 
@@ -193,7 +203,7 @@ accessRequestsRouter.get(
     const pools = await Promise.all(
       REQUESTABLE_ROLES.map(async (role) => {
         const pool = await prisma.licensePool.findUnique({ where: { role } });
-        const usedLicenses = await prisma.user.count({ where: { role } });
+        const usedLicenses = await prisma.user.count({ where: { role, hasLicense: true } });
         const totalLicenses = pool?.totalLicenses ?? 0;
         return { role, totalLicenses, usedLicenses, available: Math.max(totalLicenses - usedLicenses, 0) };
       })

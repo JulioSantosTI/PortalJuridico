@@ -1,8 +1,9 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Scale, FilePlus2, ListChecks, ClipboardList, History, LayoutDashboard, LogOut, CalendarDays, Users } from "lucide-react";
+import { Scale, FilePlus2, ListChecks, ClipboardList, History, LayoutDashboard, LogOut, CalendarDays, Users, UserCircle, LifeBuoy, SlidersHorizontal } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useBrowserReminders } from "@/hooks/useBrowserReminders";
 import { cn } from "@/lib/utils";
+import { Avatar } from "@/components/ui/avatar";
 
 const ROLE_LABEL: Record<string, string> = {
   USUARIO: "Usuário",
@@ -23,6 +24,9 @@ export function AppShell() {
     (user.role === "COLABORADOR" || user.role === "GESTOR") && { to: "/historico", label: "Histórico", icon: History },
     user.role === "GESTOR" && { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     user.role === "GESTOR" && { to: "/usuarios", label: "Gerenciamento de Usuários", icon: Users },
+    user.role === "GESTOR" && { to: "/preferencias", label: "Preferências do Sistema", icon: SlidersHorizontal },
+    (user.role === "COLABORADOR" || user.role === "GESTOR") && { to: "/suporte", label: "Suporte", icon: LifeBuoy },
+    { to: "/conta", label: "Minha Conta", icon: UserCircle },
   ].filter((link): link is { to: string; label: string; icon: typeof FilePlus2 } => Boolean(link));
 
   return (
@@ -52,13 +56,18 @@ export function AppShell() {
         </nav>
 
         <div className="border-t border-border p-4">
-          <p className="truncate text-sm font-medium">{user.name}</p>
-          <p className="truncate text-xs text-muted-foreground">
-            {ROLE_LABEL[user.role]} · {user.setor}
-          </p>
+          <div className="mb-3 flex items-center gap-3">
+            <Avatar name={user.name} src={user.avatarUrl} size="sm" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{user.name}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {ROLE_LABEL[user.role]} · {user.setor}
+              </p>
+            </div>
+          </div>
           <button
             onClick={logout}
-            className="mt-3 flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive"
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive"
           >
             <LogOut className="h-4 w-4" /> Sair
           </button>

@@ -6,6 +6,7 @@ import { addBusinessDays } from "../../lib/businessDays";
 import { asyncHandler, HttpError } from "../../middleware/error.middleware";
 import { requireAuth, requireRole } from "../../middleware/auth.middleware";
 import { serializeWithCountdown } from "./requests.service";
+import { sendEmail } from "../../lib/email";
 
 export const requestsRouter = Router();
 
@@ -61,7 +62,7 @@ const detailInclude = {
   interactions: {
     orderBy: { createdAt: "asc" as const },
     include: {
-      author: { select: { id: true, name: true } },
+      author: { select: { id: true, name: true, cargo: true, avatarKey: true } },
       attachments: true,
     },
   },
@@ -82,6 +83,10 @@ requestsRouter.post(
     }
     if (requestType.slug === "revisao_contrato" && !body.descricaoRevisao) {
       throw new HttpError(400, "Revisão de contrato exige 'descricaoRevisao'");
+    }
+    if (requestType.slug !== "advertencia" && requestType.slug !== "revisao_contrato") {
+      const descricao = typeof body.detalhes?.descricao === "string" ? body.detalhes.descricao.trim() : "";
+      if (!descricao) throw new HttpError(400, "Descrição é obrigatória para esse tipo de solicitação");
     }
 
     const now = new Date();
@@ -112,6 +117,21 @@ requestsRouter.post(
       },
       include: detailInclude,
     });
+
+    // Best-effort, não bloqueia a resposta: avisa todo GESTOR ativo que uma
+    // nova solicitação foi aberta. Corpo é só um placeholder por enquanto.
+    prisma.user
+      .findMany({ where: { role: Role.GESTOR, active: true, hasLicense: true }, select: { email: true } })
+      .then((gestores) => {
+        const to = gestores.map((g) => g.email);
+        sendEmail(
+          to,
+          `Nova solicitação aberta — ${created.requestType.name}`,
+          `Uma nova solicitação de ${created.requestType.name} foi aberta por ${created.requester.name}.\n\n` +
+            `Acesse: ${process.env.FRONTEND_URL}/solicitacoes/${created.id}`
+        );
+      })
+      .catch((err) => console.error("Falha ao buscar gestores para notificar:", err));
 
     res.status(201).json({ request: serializeWithCountdown(created) });
   })
@@ -216,6 +236,17 @@ requestsRouter.patch(
       data: { assignedToId },
       include: detailInclude,
     });
+
+    // Best-effort: avisa quem recebeu a atribuição (pula quando é auto-atribuição,
+    // não faz sentido notificar a própria pessoa). Corpo é só um placeholder por enquanto.
+    if (assignedToId !== req.user!.id) {
+      sendEmail(
+        target.email,
+        `Chamado nº ${updated.id.slice(0, 8)} atribuído a você — ${updated.requestType.name}`,
+        `O chamado nº ${updated.id.slice(0, 8)} (${updated.requestType.name}) foi atribuído a você.\n\n` +
+          `Acesse: ${process.env.FRONTEND_URL}/solicitacoes/${updated.id}`
+      );
+    }
 
     res.json({ request: serializeWithCountdown(updated) });
   })

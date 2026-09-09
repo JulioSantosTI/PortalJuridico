@@ -74,7 +74,22 @@ async function main() {
     create: { role: Role.COLABORADOR, totalLicenses: 5 },
   });
 
+  const adminEmail = process.env.ADMIN_EMAIL || "admin@admin.com";
+  const adminPassword = process.env.ADMIN_PASSWORD || "M45t3r";
+  const adminPasswordHash = await bcrypt.hash(adminPassword, 10);
+
+  await prisma.platformAdmin.upsert({
+    where: { email: adminEmail },
+    update: {},
+    create: {
+      name: "Administrador da Plataforma",
+      email: adminEmail,
+      passwordHash: adminPasswordHash,
+    },
+  });
+
   console.log("Seed concluído. Senha padrão para todos: 123456");
+  console.log(`Login master (/admin): ${adminEmail}`);
 }
 
 main()

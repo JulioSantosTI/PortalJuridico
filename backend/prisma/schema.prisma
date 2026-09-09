@@ -25,6 +25,11 @@ enum AccessRequestStatus {
   RECUSADO
 }
 
+enum InternalTicketStatus {
+  ABERTO
+  RESOLVIDO
+}
+
 model User {
   id           String   @id @default(uuid())
   name         String
@@ -35,6 +40,10 @@ model User {
   loja         String
   cidade       String
   estado       String
+  cargo        String?
+  avatarKey    String?
+  active       Boolean  @default(true)
+  hasLicense   Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -45,8 +54,12 @@ model User {
   googleAccount    GoogleAccount?
   calendarEvents   CalendarEvent[]
   reviewedRequests AccessRequest[]      @relation("ReviewedAccessRequests")
+  internalTickets  InternalTicket[]
+  internalTicketInteractions InternalTicketInteraction[]
 
   @@index([role])
+  @@index([role, active])
+  @@index([role, hasLicense])
 }
 
 model LicensePool {
@@ -54,6 +67,17 @@ model LicensePool {
   role          Role     @unique
   totalLicenses Int
   updatedAt     DateTime @updatedAt
+}
+
+model PlatformAdmin {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  internalTicketInteractions InternalTicketInteraction[]
 }
 
 model AccessRequest {
@@ -182,4 +206,49 @@ model Attachment {
   mimeType      String
   sizeBytes     Int
   createdAt     DateTime             @default(now())
+}
+
+model InternalTicket {
+  id         String               @id @default(uuid())
+  authorId   String
+  author     User                 @relation(fields: [authorId], references: [id])
+  tipo       String
+  mensagem   String
+  status     InternalTicketStatus @default(ABERTO)
+  createdAt  DateTime             @default(now())
+  resolvedAt DateTime?
+
+  interactions InternalTicketInteraction[]
+  attachments  InternalTicketAttachment[]
+
+  @@index([status])
+}
+
+model InternalTicketInteraction {
+  id            String         @id @default(uuid())
+  ticketId      String
+  ticket        InternalTicket @relation(fields: [ticketId], references: [id])
+  authorUserId  String?
+  authorUser    User?          @relation(fields: [authorUserId], references: [id])
+  authorAdminId String?
+  authorAdmin   PlatformAdmin? @relation(fields: [authorAdminId], references: [id])
+  message       String
+  createdAt     DateTime       @default(now())
+
+  attachments InternalTicketAttachment[]
+
+  @@index([ticketId])
+}
+
+model InternalTicketAttachment {
+  id            String                     @id @default(uuid())
+  ticketId      String
+  ticket        InternalTicket             @relation(fields: [ticketId], references: [id])
+  interactionId String?
+  interaction   InternalTicketInteraction? @relation(fields: [interactionId], references: [id])
+  fileName      String
+  storageKey    String
+  mimeType      String
+  sizeBytes     Int
+  createdAt     DateTime                   @default(now())
 }

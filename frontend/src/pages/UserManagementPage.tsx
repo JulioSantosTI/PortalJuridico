@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -8,15 +9,91 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Avatar } from "@/components/ui/avatar";
 import { approveAccessRequest, fetchAccessRequests, fetchLicensePools, rejectAccessRequest } from "@/api/accessRequests";
+import { fetchCompanyUsers } from "@/api/users";
 import { ApiError } from "@/api/client";
-import type { AccessRequest, AccessRequestStatus } from "@/lib/types";
+import type { AccessRequest, AccessRequestStatus, CompanyUserRoleFilter } from "@/lib/types";
 
 const ROLE_LABEL: Record<string, string> = {
   USUARIO: "Usuário",
   COLABORADOR: "Colaborador Jurídico",
 };
+
+function CompanyUsersTab() {
+  const navigate = useNavigate();
+  const [roleFilter, setRoleFilter] = React.useState<CompanyUserRoleFilter>("TODOS");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["companyUsers", roleFilter],
+    queryFn: () => fetchCompanyUsers(roleFilter),
+  });
+  const users = data?.users ?? [];
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="w-56">
+        <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as CompanyUserRoleFilter)}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="TODOS">Todos</SelectItem>
+            <SelectItem value="COLABORADOR">Colaborador Jurídico</SelectItem>
+            <SelectItem value="USUARIO">Usuário</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Carregando...</p>
+      ) : users.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+          Nenhum usuário encontrado.
+        </div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nome</TableHead>
+              <TableHead>Cargo</TableHead>
+              <TableHead>Setor</TableHead>
+              <TableHead>E-mail</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {users.map((u) => (
+              <TableRow key={u.id}>
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-2">
+                    <Avatar name={u.name} src={u.avatarUrl} size="sm" />
+                    {u.name}
+                  </div>
+                </TableCell>
+                <TableCell className="text-muted-foreground">{u.cargo ?? "—"}</TableCell>
+                <TableCell className="text-muted-foreground">{u.setor}</TableCell>
+                <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                <TableCell>{ROLE_LABEL[u.role]}</TableCell>
+                <TableCell>
+                  <button
+                    onClick={() => navigate(`/usuarios/${u.id}`)}
+                    className="text-sm font-medium text-primary hover:underline"
+                  >
+                    Ver perfil
+                  </button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </div>
+  );
+}
 
 const STATUS_VARIANT: Record<AccessRequestStatus, "muted" | "success" | "destructive"> = {
   PENDENTE: "muted",
@@ -83,80 +160,93 @@ export function UserManagementPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">Gerenciamento de Usuários</h1>
-        <p className="text-sm text-muted-foreground">Licenças contratadas e solicitações de acesso ao sistema.</p>
+        <p className="text-sm text-muted-foreground">Licenças contratadas, solicitações de acesso e usuários da empresa.</p>
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-        {pools.map((pool) => (
-          <Card key={pool.role}>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium text-muted-foreground">{ROLE_LABEL[pool.role]}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-semibold">
-                {pool.available}
-                <span className="text-sm font-normal text-muted-foreground"> disponíveis</span>
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {pool.usedLicenses} em uso de {pool.totalLicenses} licenças
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <Tabs value={tab} onValueChange={(v) => setTab(v as AccessRequestStatus)}>
+      <Tabs defaultValue="solicitacoes">
         <TabsList>
-          <TabsTrigger value="PENDENTE">Pendentes</TabsTrigger>
-          <TabsTrigger value="APROVADO">Aprovadas</TabsTrigger>
-          <TabsTrigger value="RECUSADO">Recusadas</TabsTrigger>
+          <TabsTrigger value="solicitacoes">Solicitações de Acesso</TabsTrigger>
+          <TabsTrigger value="usuarios">Usuários</TabsTrigger>
         </TabsList>
-        <TabsContent value={tab}>
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground">Carregando...</p>
-          ) : requests.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-              Nenhuma solicitação aqui.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>E-mail</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Setor / Loja</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {requests.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-medium">{r.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{r.email}</TableCell>
-                    <TableCell>{ROLE_LABEL[r.requestedRole]}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {r.setor} / {r.loja}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={STATUS_VARIANT[r.status]}>{r.status}</Badge>
-                    </TableCell>
-                    <TableCell>{formatDate(r.createdAt)}</TableCell>
-                    <TableCell>
-                      <button
-                        onClick={() => setSelected(r)}
-                        className="text-sm font-medium text-primary hover:underline"
-                      >
-                        Ver
-                      </button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+
+        <TabsContent value="solicitacoes">
+          <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+            {pools.map((pool) => (
+              <Card key={pool.role}>
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">{ROLE_LABEL[pool.role]}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-3xl font-semibold">
+                    {pool.available}
+                    <span className="text-sm font-normal text-muted-foreground"> disponíveis</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {pool.usedLicenses} em uso de {pool.totalLicenses} licenças
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <Tabs value={tab} onValueChange={(v) => setTab(v as AccessRequestStatus)}>
+            <TabsList>
+              <TabsTrigger value="PENDENTE">Pendentes</TabsTrigger>
+              <TabsTrigger value="APROVADO">Aprovadas</TabsTrigger>
+              <TabsTrigger value="RECUSADO">Recusadas</TabsTrigger>
+            </TabsList>
+            <TabsContent value={tab}>
+              {isLoading ? (
+                <p className="text-sm text-muted-foreground">Carregando...</p>
+              ) : requests.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+                  Nenhuma solicitação aqui.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>E-mail</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Setor / Loja</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Data</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {requests.map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="font-medium">{r.name}</TableCell>
+                        <TableCell className="text-muted-foreground">{r.email}</TableCell>
+                        <TableCell>{ROLE_LABEL[r.requestedRole]}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {r.setor} / {r.loja}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={STATUS_VARIANT[r.status]}>{r.status}</Badge>
+                        </TableCell>
+                        <TableCell>{formatDate(r.createdAt)}</TableCell>
+                        <TableCell>
+                          <button
+                            onClick={() => setSelected(r)}
+                            className="text-sm font-medium text-primary hover:underline"
+                          >
+                            Ver
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </TabsContent>
+          </Tabs>
+        </TabsContent>
+
+        <TabsContent value="usuarios">
+          <CompanyUsersTab />
         </TabsContent>
       </Tabs>
 

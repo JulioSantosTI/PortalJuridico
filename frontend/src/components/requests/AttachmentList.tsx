@@ -1,7 +1,12 @@
 import { FileText } from "lucide-react";
-import type { Attachment } from "@/lib/types";
 
-export function AttachmentList({ attachments }: { attachments: Attachment[] }) {
+interface AttachmentLike {
+  id: string;
+  fileName: string;
+  fileUrl?: string;
+}
+
+export function AttachmentList({ attachments }: { attachments: AttachmentLike[] }) {
   if (attachments.length === 0) {
     return <p className="text-sm text-muted-foreground">Nenhum anexo.</p>;
   }

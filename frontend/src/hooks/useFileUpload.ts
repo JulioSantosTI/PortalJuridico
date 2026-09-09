@@ -10,7 +10,7 @@ export interface UploadItem {
   error?: string;
 }
 
-export function useFileUpload() {
+export function useFileUpload(uploadFn: (file: File) => Promise<AttachmentInput> = uploadFile) {
   const [items, setItems] = React.useState<UploadItem[]>([]);
 
   const addFiles = React.useCallback((files: FileList | File[]) => {
@@ -22,7 +22,7 @@ export function useFileUpload() {
     setItems((prev) => [...prev, ...newItems]);
 
     newItems.forEach((item) => {
-      uploadFile(item.file)
+      uploadFn(item.file)
         .then((result) => {
           setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: "done", result } : i)));
         })
@@ -30,7 +30,7 @@ export function useFileUpload() {
           setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: "error", error: err.message } : i)));
         });
     });
-  }, []);
+  }, [uploadFn]);
 
   const removeItem = React.useCallback((id: string) => {
     setItems((prev) => prev.filter((i) => i.id !== id));

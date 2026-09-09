@@ -28,6 +28,9 @@ export function NewRequestPage() {
   const [advertidoNome, setAdvertidoNome] = React.useState("");
   const [motivo, setMotivo] = React.useState("");
   const [descricaoRevisao, setDescricaoRevisao] = React.useState("");
+  const [descricaoGenerica, setDescricaoGenerica] = React.useState("");
+
+  const isTipoPadrao = slug === "advertencia" || slug === "revisao_contrato";
 
   const selectedType = requestTypes.find((t) => t.slug === slug);
 
@@ -60,6 +63,7 @@ export function NewRequestPage() {
       advertidoNome: slug === "advertencia" ? advertidoNome : undefined,
       motivo: slug === "advertencia" ? motivo : undefined,
       descricaoRevisao: slug === "revisao_contrato" ? descricaoRevisao : undefined,
+      detalhes: !isTipoPadrao ? { descricao: descricaoGenerica } : undefined,
       attachments: upload.attachments,
     });
   }
@@ -129,6 +133,18 @@ export function NewRequestPage() {
                   required
                   value={descricaoRevisao}
                   onChange={(e) => setDescricaoRevisao(e.target.value)}
+                />
+              </div>
+            )}
+
+            {slug && !isTipoPadrao && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="descricao-generica">Descrição *</Label>
+                <Textarea
+                  id="descricao-generica"
+                  required
+                  value={descricaoGenerica}
+                  onChange={(e) => setDescricaoGenerica(e.target.value)}
                 />
               </div>
             )}

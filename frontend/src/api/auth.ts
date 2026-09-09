@@ -11,3 +11,15 @@ export function login(email: string, password: string) {
 export function fetchMe() {
   return apiRequest<{ user: User }>("/auth/me");
 }
+
+export interface UpdateMePayload {
+  name?: string;
+  setor?: string;
+  cargo?: string | null;
+  email?: string;
+  avatarKey?: string | null;
+}
+
+export function updateMe(payload: UpdateMePayload) {
+  return apiRequest<{ user: User }>("/auth/me", { method: "PATCH", body: payload });
+}

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { StatusBadge } from "@/components/requests/StatusBadge";
 import { DeadlineBadge } from "@/components/requests/DeadlineBadge";
 import { AttachmentList } from "@/components/requests/AttachmentList";
+import { Avatar } from "@/components/ui/avatar";
 import { FileUploadField } from "@/components/requests/FileUploadField";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { useAuth } from "@/context/AuthContext";
@@ -126,6 +127,12 @@ export function RequestDetailPage() {
               <p className="font-medium">{request.descricaoRevisao}</p>
             </div>
           )}
+          {request.detalhes?.descricao && (
+            <div className="col-span-2">
+              <p className="text-muted-foreground">Descrição</p>
+              <p className="font-medium">{request.detalhes.descricao}</p>
+            </div>
+          )}
           <div className="col-span-2">
             <p className="mb-2 text-muted-foreground">Anexos da solicitação</p>
             <AttachmentList attachments={request.attachments} />
@@ -144,10 +151,6 @@ export function RequestDetailPage() {
             <ul className="flex flex-col gap-4">
               {request.interactions.map((interaction) => (
                 <li key={interaction.id} className="rounded-lg border border-border bg-muted/30 p-4">
-                  <div className="mb-1 flex items-center justify-between text-sm">
-                    <span className="font-medium">{interaction.author.name}</span>
-                    <span className="text-muted-foreground">{formatDateTime(interaction.createdAt)}</span>
-                  </div>
                   <p className="text-sm">{interaction.message}</p>
                   {interaction.statusChangeTo && (
                     <p className="mt-2 text-xs text-muted-foreground">
@@ -159,6 +162,19 @@ export function RequestDetailPage() {
                       <AttachmentList attachments={interaction.attachments} />
                     </div>
                   )}
+
+                  <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/60 pt-3">
+                    <div className="flex items-center gap-2">
+                      <Avatar name={interaction.author.name} src={interaction.author.avatarUrl} size="sm" />
+                      <div className="leading-tight">
+                        <p className="text-xs font-medium">{interaction.author.name}</p>
+                        {interaction.author.cargo && (
+                          <p className="text-xs text-muted-foreground">{interaction.author.cargo}</p>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{formatDateTime(interaction.createdAt)}</span>
+                  </div>
                 </li>
               ))}
             </ul>

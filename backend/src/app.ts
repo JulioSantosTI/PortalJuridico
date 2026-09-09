@@ -9,6 +9,8 @@ import { uploadsRouter } from "./modules/uploads/uploads.routes";
 import { dashboardRouter } from "./modules/dashboard/dashboard.routes";
 import { calendarRouter } from "./modules/calendar/calendar.routes";
 import { accessRequestsRouter } from "./modules/accessRequests/accessRequests.routes";
+import { adminRouter } from "./modules/admin/admin.routes";
+import { internalTicketsRouter } from "./modules/internalTickets/internalTickets.routes";
 import { errorHandler } from "./middleware/error.middleware";
 
 export const app = express();
@@ -27,5 +29,7 @@ app.use("/api/uploads", uploadsRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/calendar", calendarRouter);
 app.use("/api/access-requests", accessRequestsRouter);
+app.use("/api/admin", adminRouter);
+app.use("/api/internal-tickets", internalTicketsRouter);
 
 app.use(errorHandler);

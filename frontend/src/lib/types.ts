@@ -10,6 +10,8 @@ export interface User {
   loja: string;
   cidade: string;
   estado: string;
+  cargo: string | null;
+  avatarUrl: string | null;
 }
 
 export type RequestableRole = "USUARIO" | "COLABORADOR";
@@ -37,6 +39,36 @@ export interface LicensePoolInfo {
   available: number;
 }
 
+export interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  role: RequestableRole;
+  setor: string;
+  loja: string;
+  active: boolean;
+  hasLicense: boolean;
+  createdAt: string;
+}
+
+export type AdminUserStatus = "COM_LICENCA" | "CADASTRADOS" | "INATIVO";
+
+export interface CompanyUser {
+  id: string;
+  name: string;
+  email: string;
+  role: RequestableRole;
+  setor: string;
+  loja: string;
+  cidade: string;
+  estado: string;
+  cargo: string | null;
+  avatarUrl: string | null;
+  createdAt: string;
+}
+
+export type CompanyUserRoleFilter = "COLABORADOR" | "USUARIO" | "TODOS";
+
 export interface RequestType {
   id: string;
   name: string;
@@ -62,7 +94,7 @@ export interface RequestInteraction {
   id: string;
   requestId: string;
   authorId: string;
-  author: { id: string; name: string };
+  author: { id: string; name: string; cargo: string | null; avatarUrl: string | null };
   message: string;
   statusChangeTo: RequestStatus | null;
   createdAt: string;
@@ -82,6 +114,7 @@ export interface RequestSummary {
   advertidoNome: string | null;
   motivo: string | null;
   descricaoRevisao: string | null;
+  detalhes: { descricao?: string } | null;
   createdAt: string;
   diasUteisRestantes: number;
   atrasado: boolean;
@@ -113,6 +146,60 @@ export interface CalendarEvent {
   end: string | null;
   reminderMinutes: number;
   htmlLink: string | null;
+}
+
+export type InternalTicketStatus = "ABERTO" | "RESOLVIDO";
+
+export interface InternalTicketAttachment {
+  id: string;
+  ticketId: string;
+  interactionId: string | null;
+  fileName: string;
+  storageKey: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+  fileUrl?: string;
+}
+
+export interface InternalTicketAuthor {
+  id: string;
+  name: string;
+  role: Role | "ADMIN";
+  cargo: string | null;
+  avatarUrl: string | null;
+}
+
+export interface InternalTicketInteraction {
+  id: string;
+  message: string;
+  createdAt: string;
+  author: InternalTicketAuthor;
+  attachments: InternalTicketAttachment[];
+}
+
+export interface InternalTicket {
+  id: string;
+  tipo: string;
+  mensagem: string;
+  status: InternalTicketStatus;
+  createdAt: string;
+  resolvedAt: string | null;
+  author: {
+    id: string;
+    name: string;
+    email: string;
+    role: Role;
+    setor: string;
+    cargo: string | null;
+    avatarUrl: string | null;
+  };
+  _count?: { interactions: number; attachments: number };
+}
+
+export interface InternalTicketDetail extends InternalTicket {
+  attachments: InternalTicketAttachment[];
+  interactions: InternalTicketInteraction[];
 }
 
 export interface DashboardKpis {

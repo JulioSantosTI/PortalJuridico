@@ -69,7 +69,7 @@ interactionsRouter.post(
         attachments: true,
         interactions: {
           orderBy: { createdAt: "asc" },
-          include: { author: { select: { id: true, name: true } }, attachments: true },
+          include: { author: { select: { id: true, name: true, cargo: true, avatarKey: true } }, attachments: true },
         },
       },
     });
